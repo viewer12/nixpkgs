@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31.11.0
-      - name: Build and inspect package
+      - name: Build, inspect, and launch package
         run: |
           set -euo pipefail
           nix-build -A nexus-shell --arg config "{ allowUnfree = true; }"
@@ -22,3 +22,13 @@ jobs:
           file "$APP/Contents/MacOS/Nexus Shell" | grep -q "arm64"
           codesign --verify --deep --strict "$APP"
           nix-instantiate --eval --strict -A nexus-shell.meta.platforms --arg config "{ allowUnfree = true; }"
+
+          open "$APP"
+          for attempt in {1..20}; do
+            if pgrep -x "Nexus Shell" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          pgrep -x "Nexus Shell" >/dev/null
+          pkill -x "Nexus Shell" || true
