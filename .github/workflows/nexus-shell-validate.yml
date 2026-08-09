@@ -1,0 +1,24 @@
+name: Nexus Shell Nix validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31.11.0
+      - name: Build and inspect package
+        run: |
+          set -euo pipefail
+          nix-build -A nexus-shell --arg config "{ allowUnfree = true; }"
+          APP="result/Applications/Nexus Shell.app"
+          test -d "$APP"
+          test "$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")" = "1.6.9"
+          file "$APP/Contents/MacOS/Nexus Shell" | grep -q "arm64"
+          codesign --verify --deep --strict "$APP"
+          nix-instantiate --eval --strict -A nexus-shell.meta.platforms --arg config "{ allowUnfree = true; }"
